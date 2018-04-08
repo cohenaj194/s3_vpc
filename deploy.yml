@@ -1,0 +1,91 @@
+
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    sourceip: ""
+
+  tasks:
+  - name: vpc create
+    ec2_vpc:
+      state: present
+      cidr_block: 172.22.0.0/16
+      resource_tags: { "Name":"test-vpc" }
+      subnets:
+        - cidr: 172.22.1.0/24
+          az: us-west-2c
+        - cidr: 172.22.2.0/24
+          az: us-west-2b
+        - cidr: 172.22.3.0/24
+          az: us-west-2a
+      internet_gateway: True
+      route_tables:
+        - subnets:
+            - 172.22.2.0/24
+            - 172.22.3.0/24
+          routes:
+            - dest: 0.0.0.0/0
+              gw: igw
+        - subnets:
+            - 172.22.1.0/24
+          routes:
+            - dest: 0.0.0.0/0
+              gw: igw
+      region: us-west-2
+    register: vpc
+
+  - name: sec group
+    ec2_group:
+      name: "s3-sec-group"
+      description: ssh only
+      vpc_id: "{{vpc.vpc_id}}"
+      region: us-west-2
+      rules:
+        - proto: tcp
+          from_port: 22
+          to_port: 22
+          cidr_ip: "{{vpc.subnets[0].id}}"
+    register: sec_group
+
+  - debug: message="{{sec_group.id}}"
+
+  # - ec2:
+  #   key_name: personal-mac
+  #   instance_type: t2.micro
+  #   image: ami-123456
+  #   wait: yes
+  #   vpc_subnet_id: "{{vpc.subnets[0].id}}"
+  #   security_group: "{{sec_group.id}}"
+  #   assign_public_ip: yes
+
+  # - name: allocate a new elastic IP and associate it with an instance
+  #   ec2_eip:
+  #     device_id: "{{instance.instance_id}}"
+  #   register: eip
+
+  # - name: Create empty buckets for backup
+  #   s3_bucket:
+  #     name: "storage-bucket-nssa620"
+  #     state: present
+  #     policy:
+  #       Version: '2012-10-17'
+  #       Statement: 
+  #         - Effect: Allow
+  #           Principal: 
+  #             "AWS" : "*"
+  #           Action: [
+  #               "s3:ListBucket",s
+  #               "s3:DeleteObject",
+  #               "s3:GetObject",
+  #               "s3:PutObject",
+  #               "s3:PutObjectAcl"
+  #           ]
+  #           Resource: [
+  #             "arn:aws:s3:::storage-bucket-nssa620/*",
+  #             "arn:aws:s3:::storage-bucket-nssa620"
+  #           ]
+  #           Condition: {
+  #             IpAddress: {"aws:SourceIp": "{{eip.allocation_id}}"}
+  #           } 
+
