@@ -4,7 +4,7 @@
   connection: local
   gather_facts: false
   vars:
-    sourceip: ""
+    sourceip: "{{ lookup('env','SOURCEIP') }}"
 
   tasks:
   - name: vpc create
@@ -45,24 +45,33 @@
         - proto: tcp
           from_port: 22
           to_port: 22
-          cidr_ip: "{{vpc.subnets[0].id}}"
+          cidr_ip: "{{sourceip}}"
     register: sec_group
 
-  - debug: message="{{sec_group.id}}"
+  - ec2:
+      key_name: personal-mac
+      instance_type: t2.micro
+      image: ami-4e79ed36
+      # wait: yes
+      vpc_subnet_id: "{{vpc.subnets[0].id}}"
+      group_id: "{{sec_group.group_id}}"
+      assign_public_ip: yes
+      instance_tags:
+        Name: bastion
+      region: us-west-2
+      count: 1
+    register: instance
 
-  # - ec2:
-  #   key_name: personal-mac
-  #   instance_type: t2.micro
-  #   image: ami-123456
-  #   wait: yes
-  #   vpc_subnet_id: "{{vpc.subnets[0].id}}"
-  #   security_group: "{{sec_group.id}}"
-  #   assign_public_ip: yes
+  - debug: msg="{{instance.instance_ids}}"
 
-  # - name: allocate a new elastic IP and associate it with an instance
-  #   ec2_eip:
-  #     device_id: "{{instance.instance_id}}"
-  #   register: eip
+  - name: allocate a new elastic IP and associate it with an instance
+    ec2_eip:
+      device_id: "{{instance.instance_ids[0]}}"
+      region: us-west-2
+    register: eip
+
+  - debug: msg="{{eip}}"
+
 
   # - name: Create empty buckets for backup
   #   s3_bucket:
