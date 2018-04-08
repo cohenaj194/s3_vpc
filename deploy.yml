@@ -52,14 +52,16 @@
       key_name: personal-mac
       instance_type: t2.micro
       image: ami-4e79ed36
-      # wait: yes
+      wait: yes
       vpc_subnet_id: "{{vpc.subnets[0].id}}"
       group_id: "{{sec_group.group_id}}"
       assign_public_ip: yes
       instance_tags:
         Name: bastion
       region: us-west-2
-      count: 1
+      count_tag: 
+        Name: bastion
+      exact_count: 1
     register: instance
 
   - debug: msg="{{instance.instance_ids}}"
@@ -72,29 +74,28 @@
 
   - debug: msg="{{eip}}"
 
-
-  # - name: Create empty buckets for backup
-  #   s3_bucket:
-  #     name: "storage-bucket-nssa620"
-  #     state: present
-  #     policy:
-  #       Version: '2012-10-17'
-  #       Statement: 
-  #         - Effect: Allow
-  #           Principal: 
-  #             "AWS" : "*"
-  #           Action: [
-  #               "s3:ListBucket",s
-  #               "s3:DeleteObject",
-  #               "s3:GetObject",
-  #               "s3:PutObject",
-  #               "s3:PutObjectAcl"
-  #           ]
-  #           Resource: [
-  #             "arn:aws:s3:::storage-bucket-nssa620/*",
-  #             "arn:aws:s3:::storage-bucket-nssa620"
-  #           ]
-  #           Condition: {
-  #             IpAddress: {"aws:SourceIp": "{{eip.allocation_id}}"}
-  #           } 
+  - name: Create empty buckets for backup
+    s3_bucket:
+      name: "storage-bucket-nssa620"
+      state: present
+      policy:
+        Version: '2012-10-17'
+        Statement: 
+          - Effect: Allow
+            Principal: 
+              "AWS" : "*"
+            Action: [
+                "s3:ListBucket",s
+                "s3:DeleteObject",
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:PutObjectAcl"
+            ]
+            Resource: [
+              "arn:aws:s3:::storage-bucket-nssa620/*",
+              "arn:aws:s3:::storage-bucket-nssa620"
+            ]
+            Condition: {
+              IpAddress: {"aws:SourceIp": "{{eip.public_ip}}"}
+            } 
 
